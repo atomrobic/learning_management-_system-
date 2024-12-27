@@ -24,11 +24,20 @@ SECRET_KEY = 'django-insecure-h!#p4s*2m*+^t9)8=ml0x9af8b$a73huzwp@i9v8)#i!(s=y&_
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+CORS_ALLOW_ALL_ORIGINS = True  # Allow all origins (for development purposes)
+
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:5500']
+CSRF_COOKIE_SECURE = False  # Disable secure cookies for local development
+
 
 ALLOWED_HOSTS = []
 
-
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8000",  # Your backend
+    "http://127.0.0.1:5500",  # Your frontend (replace with the actual origin)
+]
 # Application definition
+LOGIN_URL = '/login/'  # Or your custom login path
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -37,7 +46,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'e_app'
+    'e_app',
+    'rest_framework',
+    'corsheaders',
+
     
 ]
 
@@ -49,6 +61,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+     'corsheaders.middleware.CorsMiddleware',
+
 
 ]
 

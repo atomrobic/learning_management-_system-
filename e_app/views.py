@@ -73,33 +73,53 @@ def signup_view(request):
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-@csrf_exempt
+@login_required  # Ensure user is logged in
+@csrf_protect  # Apply CSRF protection
+def enroll_in_course(request, course_id):
+    if request.method == 'POST':
+        try:
+            user = request.user  # Get the logged-in user
+            course = get_object_or_404(Course, pk=course_id)  # Get course object
+            
+            # Check if the user is already enrolled
+            if Enrollment.objects.filter(user=user, course=course).exists():
+                return JsonResponse({'error': 'You are already enrolled in this course.'}, status=400)
+            
+            # Enroll the user in the course
+            enrollment = Enrollment.objects.create(user=user, course=course)
+            
+            # Create progress entries for each chapter in the course
+            for chapter in course.chapters.all():
+                Progress.objects.create(user=user, chapter=chapter, completed=False)
+            
+            return JsonResponse({
+                'success': f'You have successfully enrolled in "{course.title}".',
+                'enrollment_id': enrollment.id
+            }, status=201)
+        except Exception as e:
+            return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
+    return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+@csrf_protect  # Ensure CSRF protection is applied to login
 def login_view(request):
     if request.method == 'POST':
         try:
-            # Check content type and parse data accordingly
-            if request.content_type == 'application/json':
-                data = json.loads(request.body)
-            else:  # For form-data or x-www-form-urlencoded
-                data = request.POST
-
+            data = json.loads(request.body)  # Ensure proper parsing of JSON
             email = data.get('email')
             password = data.get('password')
+            
+            if not email or not password:
+                return JsonResponse({'error': 'Email and password are required'}, status=400)
+            
+            user = authenticate(request, username=email, password=password)
+            if user:
+                login(request, user)  # Log the user in
+                return JsonResponse({'success': 'Logged in successfully!'}, status=200)
+            else:
+                return JsonResponse({'error': 'Invalid credentials'}, status=400)
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data provided.'}, status=400)
-
-        if not email or not password:
-            return JsonResponse({'error': 'Email and password are required'}, status=400)
-
-        user = authenticate(request, username=email, password=password)
-        if user:
-            login(request, user)
-            return JsonResponse({'success': 'Logged in successfully!'}, status=200)
-        else:
-            return JsonResponse({'error': 'Invalid credentials'}, status=400)
-
     return JsonResponse({'error': 'Invalid request method'}, status=405)
-
 
 
 # Course List View
@@ -168,43 +188,44 @@ def course_articles(request, course_id):
 
 
 # Enroll in Course View
-@csrf_exempt
-@login_required
-def enroll_in_course(request, course_id):
-    try:
-        # Log the request method and body to debug
-        print(f"Request Method: {request.method}")
-        if request.method == 'POST':
-            print(f"Request Body: {request.body}")
+# @csrf_protect  # Ensures CSRF protection is applied to this view
+# @csrf_exempt
+# @login_required
+# def enroll_in_course(request, course_id):
+#     try:
+#         # Log the request method and body to debug
+#         print(f"Request Method: {request.method}")
+#         if request.method == 'POST':
+#             print(f"Request Body: {request.body}")
 
-        # Ensure the user is authenticated (optional if using @login_required)
-        if not request.user.is_authenticated:
-            return JsonResponse({'error': 'You must be logged in to enroll in a course.'}, status=401)
+#         # Ensure the user is authenticated (optional if using @login_required)
+#         if not request.user.is_authenticated:
+#             return JsonResponse({'error': 'You must be logged in to enroll in a course.'}, status=401)
 
-        # Get the logged-in user and the specified course
-        user = request.user
-        course = get_object_or_404(Course, pk=course_id)
+#         # Get the logged-in user and the specified course
+#         user = request.user
+#         course = get_object_or_404(Course, pk=course_id)
 
-        # Check if the user is already enrolled in the course
-        if Enrollment.objects.filter(user=user, course=course).exists():
-            return JsonResponse({'error': 'You are already enrolled in this course.'}, status=400)
+#         # Check if the user is already enrolled in the course
+#         if Enrollment.objects.filter(user=user, course=course).exists():
+#             return JsonResponse({'error': 'You are already enrolled in this course.'}, status=400)
 
-        # Create a new enrollment
-        enrollment = Enrollment.objects.create(user=user, course=course)
+#         # Create a new enrollment
+#         enrollment = Enrollment.objects.create(user=user, course=course)
 
-        # Create progress entries for each chapter in the course
-        for chapter in course.chapters.all():
-            Progress.objects.create(user=user, chapter=chapter, completed=False)
+#         # Create progress entries for each chapter in the course
+#         for chapter in course.chapters.all():
+#             Progress.objects.create(user=user, chapter=chapter, completed=False)
 
-        # Respond with success message
-        return JsonResponse({
-            'success': f'You have been successfully enrolled in "{course.title}"!',
-            'enrollment_id': enrollment.id
-        }, status=201)
+#         # Respond with success message
+#         return JsonResponse({
+#             'success': f'You have been successfully enrolled in "{course.title}"!',
+#             'enrollment_id': enrollment.id
+#         }, status=201)
 
-    except Exception as e:
-        # Handle unexpected errors
-        return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
+#     except Exception as e:
+#         # Handle unexpected errors
+#         return JsonResponse({'error': f'An unexpected error occurred: {str(e)}'}, status=500)
 
 @csrf_exempt
 @login_required
